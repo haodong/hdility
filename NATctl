@@ -1,0 +1,110 @@
+#!/bin/sh
+
+checkENV () {
+    kernal=$(uname -s)
+    if [ $kernal != "Linux" ] && [ $kernal != "linux" ]; then
+        echo "Sorry, this script only supports Linux."
+        exit 1
+    fi
+}
+
+listNAT () {
+    iptables -t nat -vnL PREROUTING
+    iptables -t nat -vnL POSTROUTING
+}
+
+resetNAT () {
+    echo "This will clean up all rules on chains of PREROUTING and POSTROUTING."
+    read -p "Are you sure?(y/n)? " sure
+    sure=${sure:-n}
+    if [ $sure != "y" ]; then
+        exit 0
+    fi
+    echo "Cleaning ..."
+    iptables -t nat -F PREROUTING
+    iptables -t nat -F POSTROUTING
+}
+
+processRule () {
+    if [ $1 = "pre" ] && [ -z $iID ]; then
+        check="iptables -t nat -C PREROUTING"
+        head="iptables -t nat -A PREROUTING"
+    elif [ $1 = "pre" ]; then
+        check="iptables -t nat -C PREROUTING"
+        head="iptables -t nat -I PREROUTING $iID"
+    elif [ "$1" = "post" ] && [ -z $iID ]; then
+        check="iptables -t nat -C POSTROUTING"
+        head="iptables -t nat -A POSTROUTING"
+    elif [ "$1" = "post" ]; then
+        check="iptables -t nat -C POSTROUTING"
+        head="iptables -t nat -I POSTROUTING $iID"
+    else
+        echo "illegal check indicator."
+        exit 1
+    fi
+    rule=$2
+    eval $check $rule 2>/dev/null
+    if [ $? != 0 ]; then
+        eval $head $rule
+    fi
+}
+
+addNAT () {
+    if [ -z $fIP ]; then
+        fIP=$(dig +short myip.opendns.com @resolver1.opendns.com)
+    fi
+    echo "Adding TCP rules ..."
+    processRule "pre" "-p tcp -m tcp --dport $fPort -j DNAT --to-destination $tIP:$tPort"
+    processRule "post" "-d $tIP/32 -p tcp -m tcp --dport $tPort -j SNAT --to-source $fIP"
+    if [ $udp = 1 ]; then
+        echo "Adding UDP rules ..."
+        processRule "pre" "-p udp -m udp --dport $fPort -j DNAT --to-destination $tIP:$tPort"
+        processRule "post" "-d $tIP/32 -p udp -m udp --dport $tPort -j SNAT --to-source $fIP"
+    fi
+}
+
+printUsage () {
+    cat << EOF
+This controller can help you handle Traffic Transfer through iptables.
+Usage: iptNAT [-c \$cmd] [-i #ID] [-f @IP] [-p #Port] [-t @IP] [-b #Port] [-u]
+    -c: Give a command to implement. Available commands are:
+            add: Add new rules.
+            list: List your NAT iptables(PREROUTING and POSTROUTING).
+            reset: Reset the two iptables, cleaning all added Traffic Transfer rules.
+    -i: Insert on the #IDth line of chain.
+    -f: From the IP. By default use 'dig' function to detect its public IP. Must be specified if the host has multiple public IPs.
+    -p: From the Port.
+    -t: To the IP, namely the target IP address.
+    -b: To the Port, namely the target port.
+    -u: With UDP mode. By default use TCP only.
+
+The code was written by Hao Dong under GPL-3.0 License.
+EOF
+}
+udp=0
+while getopts 'c:i:f:p:t:b:uh' opt; do
+    case $opt in
+        c)  cmd=$OPTARG ;;
+        i)  iID=$OPTARG ;;
+        f)  fIP=$OPTARG ;;
+        p)  fPort=$OPTARG;;
+        t)  tIP=$OPTARG ;;
+        b)  tPort=$OPTARG ;;
+        u)  udp=1 ;;
+        h)  printUsage
+            exit 0
+            ;;
+        *)  printUsage
+            exit 1
+            ;;
+    esac
+done
+
+checkENV
+case $cmd in 
+    add)    addNAT  ;;
+    list)   listNAT ;;
+    reset)  resetNAT;;
+esac
+echo "Done."
+exit 0
