@@ -3,7 +3,7 @@
 BLK='\033[1;30m'
 WHT='\033[47m'
 NC='\033[0m'
-echo This script was written by
+echo This script was written under GPL-3.0 License by
 echo "${WHT}${BLK}"
 cat << EOF
           _   _                     ____                                        
@@ -21,7 +21,7 @@ lsb_release -ds | grep -iq debian || {
 }
 read -p "Continue (y/n)? " ctn
 ctn=${ctn:-n}
-if [ "$ctn" != "y" ]; then
+if [ $ctn != "y" ]; then
     exit 0
 fi
 
