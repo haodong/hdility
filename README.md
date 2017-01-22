@@ -17,6 +17,7 @@ Now I'm putting them here one by one to share.
 
 ## NATctl
 - A controller to add/list/reset Traffic Transfer through iptables.
+- Installation: `wget https://raw.githubusercontent.com/haodong/hdility/master/NATctl -O /usr/local/bin`
 - Usage:
 ```
 > NATctl -h
@@ -24,14 +25,15 @@ This script can help you handle Traffic Transfer through iptables.
 Usage: iptNAT [-c $cmd] [-i #ID] [-f @IP] [-p #Port] [-t @IP] [-b #Port] [-u]
     -c: Give a command to implement. Available commands are:
         add: Add new rules.
+            -i: Insert on the #IDth line of chain.
+            -f: From the IP. By default use 'dig' function to detect its public IP. Must be specified if the host has multiple public IPs.
+            -p: From the Port.
+            -t: To the IP, namely the target IP address.
+            -b: To the Port, namely the target port.
+            -u: With UDP mode. By default use TCP only.
         list: List your NAT iptables(PREROUTING and POSTROUTING).
         reset: Reset the two iptables, cleaning all added Traffic Transfer rules.
-    -i: Insert on the #IDth line of chain.
-    -f: From the IP. By default use 'dig' function to detect its public IP. Must be specified if the host has multiple public IPs.
-    -p: From the Port.
-    -t: To the IP, namely the target IP address.
-    -b: To the Port, namely the target port.
-    -u: With UDP mode. By default use TCP only.
+
 
 The code was written by Hao Dong under GPL-3.0 License.
 ```
