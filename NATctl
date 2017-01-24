@@ -1,6 +1,6 @@
 #!/bin/sh
 
-checkENV () {
+checkPLF () {
     kernal=$(uname -s)
     if [ $kernal != "Linux" ] && [ $kernal != "linux" ]; then
         echo "Sorry, this script only supports Linux."
@@ -50,6 +50,10 @@ processRule () {
 }
 
 addNAT () {
+    forward=$(cat /proc/sys/net/ipv4/ip_forward)
+    if [ $forward != 1 ]; then
+        echo "1"> /proc/sys/net/ipv4/ip_forward
+    fi
     if [ -z $fIP ]; then
         fIP=$(dig +short myip.opendns.com @resolver1.opendns.com)
     fi
@@ -100,7 +104,7 @@ while getopts 'c:i:f:p:t:b:uh' opt; do
     esac
 done
 
-checkENV
+checkPLF
 case $cmd in 
     add)    addNAT  ;;
     list)   listNAT ;;
