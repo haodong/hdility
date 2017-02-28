@@ -31,6 +31,8 @@ Usage: iptNAT [-c $cmd] [-i #ID] [-f @IP] [-p #Port] [-t @IP] [-b #Port] [-u]
             -t: To the IP, namely the target IP address.
             -b: To the Port, namely the target port.
             -u: With UDP mode. By default use TCP only.
+        del: Delete existing rules.
+            Note: must specify parameters as same as you add them, but [Insert ID] is not required.
         list: List your NAT iptables(PREROUTING and POSTROUTING).
         reset: Reset the two iptables, cleaning all added Traffic Transfer rules.
 
@@ -47,7 +49,10 @@ The code was written by Hao Dong under GPL-3.0 License.
 Adding TCP rules ...
 Done.
 
-## To revert
+## To delete
+> NATctl -c del -f 0.0.0.0 -p 60001 -t 1.1.1.1 -b 22
+
+## To revert all
 > NATctl -c reset
 This will clean up all rules on chains of PREROUTING and POSTROUTING.
 Are you sure?(y/n)? y
