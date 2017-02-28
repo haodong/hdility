@@ -67,6 +67,17 @@ addNAT () {
     fi
 }
 
+delNAT () {
+    echo "Deleting TCP rules ..."
+    iptables -t nat -D PREROUTING -p tcp -m tcp --dport $fPort -j DNAT --to-destination $tIP:$tPort
+    iptables -t nat -D POSTROUTING -d $tIP/32 -p tcp -m tcp --dport $tPort -j SNAT --to-source $fIP
+    if [ $udp = 1 ]; then
+        echo "Deleting UDP rules ..."
+        iptables -t nat -D PREROUTING -p udp -m udp --dport $fPort -j DNAT --to-destination $tIP:$tPort
+        iptables -t nat -D POSTROUTING -d $tIP/32 -p udp -m udp --dport $tPort -j SNAT --to-source $fIP
+    fi
+}
+
 printUsage () {
     cat << EOF
 This controller can help you handle Traffic Transfer through iptables.
@@ -79,6 +90,8 @@ Usage: iptNAT [-c \$cmd] [-i #ID] [-f @IP] [-p #Port] [-t @IP] [-b #Port] [-u]
             -t: To the IP, namely the target IP address.
             -b: To the Port, namely the target port.
             -u: With UDP mode. By default use TCP only.
+        del: Delete existing rules.
+            Note: must specify parameters as same as you add them, but [Insert ID] is not required.
         list: List your NAT iptables(PREROUTING and POSTROUTING).
         reset: Reset the two iptables, cleaning all added Traffic Transfer rules.
 
@@ -107,6 +120,7 @@ done
 checkPLF
 case $cmd in 
     add)    addNAT  ;;
+    del)    delNAT  ;;
     list)   listNAT ;;
     reset)  resetNAT;;
 esac
