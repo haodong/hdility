@@ -21,21 +21,20 @@ Now I'm putting them here one by one to share.
 - Usage:
 ```
 > NATctl -h
-This script can help you handle Traffic Transfer through iptables.
+This controller can help you handle Traffic Transfer through iptables.
 Usage: iptNAT [-c $cmd] [-i #ID] [-f @IP] [-p #Port] [-t @IP] [-b #Port] [-u]
     -c: Give a command to implement. Available commands are:
         add: Add new rules.
-            -i: Insert on the #IDth line of chain.
-            -f: From the IP. By default use 'dig' function to detect its public IP. Must be specified if the host has multiple public IPs.
-            -p: From the Port.
-            -t: To the IP, namely the target IP address.
-            -b: To the Port, namely the target port.
-            -u: With UDP mode. By default use TCP only.
         del: Delete existing rules.
-            Note: must specify parameters as same as you add them, but [Insert ID] is not required.
-        list: List your NAT iptables(PREROUTING and POSTROUTING).
-        reset: Reset the two iptables, cleaning all added Traffic Transfer rules.
-
+            -i: The #th line of PREROUTING chain for inserting (add mode) and for removing (delete mode).
+            -d: The #th line of POSTROUTING chain for inserting (add mode) and for removing (delete mode).
+            -f: From the IP. By default use 'dig' function to detect its public IP. Must be specified if the host has multiple public IPs.
+            -t: To the IP, namely the target IP address.
+            -p: From the Port.
+            -b: To the Port, namely the target port.
+            -o: Specify Protocal.
+        list: List your NAT iptables (exclude MASQUERADE and show PREROUTING & POSTROUTING only).
+        reset: Reset the two chains, cleaning all added Traffic Transfer rules.
 
 The code was written by Hao Dong under GPL-3.0 License.
 ```
