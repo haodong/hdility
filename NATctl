@@ -9,8 +9,8 @@ checkPLF () {
 }
 
 listNAT () {
-    iptables -t nat -vnL PREROUTING | grep -vi masquerade
-    iptables -t nat -vnL POSTROUTING | grep -vi masquerade
+    iptables -t nat -vnL PREROUTING --line-number | grep -vi masquerade
+    iptables -t nat -vnL POSTROUTING --line-number | grep -vi masquerade
 }
 
 resetNAT () {
