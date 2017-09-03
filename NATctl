@@ -1,5 +1,5 @@
 #!/bin/sh
-
+set +x
 checkPLF () {
     kernal=$(uname -s)
     if [ $kernal != "Linux" ] && [ $kernal != "linux" ]; then
@@ -26,18 +26,18 @@ resetNAT () {
 }
 
 processRule () {
-    if [ $1 = "pre" ] && [ -z $iID ]; then
+    if [ $1 = "pre" ] && [ -z $preID ]; then
         check="iptables -t nat -C PREROUTING"
         head="iptables -t nat -A PREROUTING"
     elif [ $1 = "pre" ]; then
         check="iptables -t nat -C PREROUTING"
-        head="iptables -t nat -I PREROUTING $iID"
-    elif [ "$1" = "post" ] && [ -z $iID ]; then
+        head="iptables -t nat -I PREROUTING $preID"
+    elif [ "$1" = "post" ] && [ -z $postID ]; then
         check="iptables -t nat -C POSTROUTING"
         head="iptables -t nat -A POSTROUTING"
     elif [ "$1" = "post" ]; then
         check="iptables -t nat -C POSTROUTING"
-        head="iptables -t nat -I POSTROUTING $iID"
+        head="iptables -t nat -I POSTROUTING $postID"
     else
         echo "illegal check indicator."
         exit 1
@@ -50,6 +50,10 @@ processRule () {
 }
 
 addNAT () {
+    if [ -z $prot ]; then
+        echo "Must Specify Protocal."
+        exit 1
+    fi
     forward=$(cat /proc/sys/net/ipv4/ip_forward)
     if [ $forward != 1 ]; then
         echo "1"> /proc/sys/net/ipv4/ip_forward
@@ -57,25 +61,30 @@ addNAT () {
     if [ -z $fIP ]; then
         fIP=$(dig +short myip.opendns.com @resolver1.opendns.com)
     fi
-    echo "Adding TCP rules ..."
-    processRule "pre" "-p tcp -m tcp --dport $fPort -j DNAT --to-destination $tIP:$tPort"
-    processRule "post" "-d $tIP/32 -p tcp -m tcp --dport $tPort -j SNAT --to-source $fIP"
-    if [ $udp = 1 ]; then
-        echo "Adding UDP rules ..."
-        processRule "pre" "-p udp -m udp --dport $fPort -j DNAT --to-destination $tIP:$tPort"
-        processRule "post" "-d $tIP/32 -p udp -m udp --dport $tPort -j SNAT --to-source $fIP"
-    fi
+    processRule "pre" "-p $prot -m $prot --dport $fPort -j DNAT --to-destination $tIP:$tPort"
+    processRule "post" "-d $tIP/32 -p $prot -m $prot --dport $tPort -j SNAT --to-source $fIP"
+    listNAT
 }
 
 delNAT () {
-    echo "Deleting TCP rules ..."
-    iptables -t nat -D PREROUTING -p tcp -m tcp --dport $fPort -j DNAT --to-destination $tIP:$tPort
-    iptables -t nat -D POSTROUTING -d $tIP/32 -p tcp -m tcp --dport $tPort -j SNAT --to-source $fIP
-    if [ $udp = 1 ]; then
-        echo "Deleting UDP rules ..."
-        iptables -t nat -D PREROUTING -p udp -m udp --dport $fPort -j DNAT --to-destination $tIP:$tPort
-        iptables -t nat -D POSTROUTING -d $tIP/32 -p udp -m udp --dport $tPort -j SNAT --to-source $fIP
+    if [ -z $prot ]; then
+        echo "Must Specify Protocal."
+        exit 1
     fi
+    if [ -z $preID ] && [ -z $postID ]; then
+        iptables -t nat -D PREROUTING $(iptables -t nat -vnL PREROUTING --line-number | grep -vi masquerade | grep "$prot dpt:$fPort to:$tIP:$tPort" | awk '{print $1}')
+        iptables -t nat -D POSTROUTING $(iptables -t nat -vnL POSTROUTING --line-number | grep -vi masquerade | grep "$prot dpt:$tPort to:" | awk '{print $1}')
+    elif [ -z $preID ]; then
+        iptables -t nat -D PREROUTING $(iptables -t nat -vnL PREROUTING --line-number | grep -vi masquerade | grep "$prot dpt:$fPort to:$tIP:$tPort" | awk '{print $1}')
+        iptables -t nat -D POSTROUTING $postID
+    elif [ -z $postID ]; then
+        iptables -t nat -D PREROUTING $preID
+        iptables -t nat -D POSTROUTING $(iptables -t nat -vnL POSTROUTING --line-number | grep -vi masquerade | grep "$prot dpt:$tPort to:" | awk '{print $1}')
+    else
+        iptables -t nat -D PREROUTING $preID
+        iptables -t nat -D POSTROUTING $postID
+    fi
+    listNAT
 }
 
 printUsage () {
@@ -84,31 +93,40 @@ This controller can help you handle Traffic Transfer through iptables.
 Usage: iptNAT [-c \$cmd] [-i #ID] [-f @IP] [-p #Port] [-t @IP] [-b #Port] [-u]
     -c: Give a command to implement. Available commands are:
         add: Add new rules.
-            -i: Insert on the #IDth line of chain.
-            -f: From the IP. By default use 'dig' function to detect its public IP. Must be specified if the host has multiple public IPs.
-            -p: From the Port.
-            -t: To the IP, namely the target IP address.
-            -b: To the Port, namely the target port.
-            -u: With UDP mode. By default use TCP only.
         del: Delete existing rules.
-            Note: must specify parameters as same as you add them, but [Insert ID] is not required.
-        list: List your NAT iptables(PREROUTING and POSTROUTING).
-        reset: Reset the two iptables, cleaning all added Traffic Transfer rules.
+            -i: The #th line of PREROUTING chain for inserting (add mode) and for removing (delete mode).
+            -d: The #th line of POSTROUTING chain for inserting (add mode) and for removing (delete mode).
+            -f: From the IP. By default use 'dig' function to detect its public IP. Must be specified if the host has multiple public IPs.
+            -t: To the IP, namely the target IP address.
+            -p: From the Port.
+            -b: To the Port, namely the target port.
+            -o: Specify Protocal.
+        list: List your NAT iptables (exclude MASQUERADE and show PREROUTING & POSTROUTING only).
+        reset: Reset the two chains, cleaning all added Traffic Transfer rules.
 
 The code was written by Hao Dong under GPL-3.0 License.
 EOF
 }
+
+printVersion () {
+    echo "NATctl version 20170903"
+}
+
 udp=0
-while getopts 'c:i:f:p:t:b:uh' opt; do
+while getopts 'c:i:d:f:p:t:b:o:hv' opt; do
     case $opt in
         c)  cmd=$OPTARG ;;
-        i)  iID=$OPTARG ;;
+        i)  preID=$OPTARG ;;
+        d)  postID=$OPTARG ;;
         f)  fIP=$OPTARG ;;
         p)  fPort=$OPTARG;;
         t)  tIP=$OPTARG ;;
         b)  tPort=$OPTARG ;;
-        u)  udp=1 ;;
+        o)  prot=$OPTARG ;;
         h)  printUsage
+            exit 0
+            ;;
+        v)  printVersion
             exit 0
             ;;
         *)  printUsage
@@ -118,6 +136,14 @@ while getopts 'c:i:f:p:t:b:uh' opt; do
 done
 
 checkPLF
+case $prot in 
+    tcp)   echo "Protocal is TCP."  ;;
+    udp)   echo "Protocal is UDP."  ;;
+    "") echo "Working..."   ;;
+    *)  echo "Wrong Protocal."
+        exit 1
+        ;;
+esac
 case $cmd in 
     add)    addNAT  ;;
     del)    delNAT  ;;
