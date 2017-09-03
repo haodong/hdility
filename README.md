@@ -17,7 +17,7 @@ Now I'm putting them here one by one to share.
 
 ## NATctl
 - A controller to add/list/reset Traffic Transfer through iptables.
-- Installation: `wget https://raw.githubusercontent.com/haodong/hdility/master/NATctl -O /usr/local/bin/NATctl`
+- Installation: `wget https://raw.githubusercontent.com/haodong/hdility/master/NATctl -O /usr/local/bin/NATctl && sudo chmod +x /usr/local/bin/NATctl`
 - Usage:
 ```
 > NATctl -h
